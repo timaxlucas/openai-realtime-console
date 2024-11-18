@@ -397,7 +397,6 @@ export function ConsolePage() {
     const client = clientRef.current;
 
     // Set instructions
-    console.log(instructions);
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
@@ -759,10 +758,20 @@ export function ConsolePage() {
               )}
             </div>
           </div> */}
+          <div className="">
+            <input type="checkbox" id="audio-only" />
+            <label htmlFor="audio-only">Idee: Audio only (keine Bilder benutzen)</label>
+          </div>
           <div className="content-block kv">
             <div className="content-block-title">set_result()</div>
             <div className="content-block-body content-kv">
               {JSON.stringify(memoryKv, null, 2)}
+            </div>
+          </div>
+          <div className="content-block kv">
+            <div className="content-block-title">db_retriever()</div>
+            <div className="content-block-body content-kv">
+
             </div>
           </div>
         </div>
