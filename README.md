@@ -56,7 +56,7 @@ There are two functions enabled;
   location, show it on a map, and get the weather for that location. Note that it doesn't
   have location access, and coordinates are "guessed" from the model's training data so
   accuracy might not be perfect.
-- `set_memory`: You can ask the model to remember information for you, and it will store it in
+- `set_result`: You can ask the model to remember information for you, and it will store it in
   a JSON blob on the left.
 
 You can freely interrupt the model at any time in push-to-talk or VAD mode.

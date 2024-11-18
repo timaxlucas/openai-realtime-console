@@ -16,7 +16,6 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { WavRecorder, WavStreamPlayer } from '../lib/wavtools/index.js';
-import { instructions } from '../utils/conversation_config.js';
 import { WavRenderer } from '../utils/wav_renderer';
 
 import { X, Edit, Zap, ArrowUp, ArrowDown } from 'react-feather';
@@ -26,6 +25,9 @@ import { Map } from '../components/Map';
 
 import './ConsolePage.scss';
 import { isJsxOpeningLikeElement } from 'typescript';
+import { Dialog } from '../components/Dialog';
+import { useAtom } from 'jotai';
+import { instructionsAtom } from '../atoms/instructions';
 
 /**
  * Type for result from get_weather() function call
@@ -62,7 +64,6 @@ export function ConsolePage() {
   const apiKey = LOCAL_RELAY_SERVER_URL
     ? ''
     : localStorage.getItem('tmp::voice_api_key') ||
-      prompt('OpenAI API Key') ||
       '';
   if (apiKey !== '') {
     localStorage.setItem('tmp::voice_api_key', apiKey);
@@ -107,7 +108,7 @@ export function ConsolePage() {
    * All of our variables for displaying application state
    * - items are all conversation items (dialog)
    * - realtimeEvents are event logs, which can be expanded
-   * - memoryKv is for set_memory() function
+   * - memoryKv is for set_result() function
    * - coords, marker are for get_weather() function
    */
   const [items, setItems] = useState<ItemType[]>([]);
@@ -124,6 +125,8 @@ export function ConsolePage() {
     lng: -122.418137,
   });
   const [marker, setMarker] = useState<Coordinates | null>(null);
+
+  const [instructions, setInstructions] = useAtom(instructionsAtom);
 
   /**
    * Utility for formatting the timing of logs
@@ -184,7 +187,7 @@ export function ConsolePage() {
     client.sendUserMessageContent([
       {
         type: `input_text`,
-        text: `Hello!`,
+        text: `Hallo!`,
         // text: `For testing purposes, I want you to list ten car brands. Number each item, e.g. "one (or whatever number you are one): the item name".`
       },
     ]);
@@ -212,7 +215,11 @@ export function ConsolePage() {
     client.disconnect();
 
     const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.end();
+    try {
+      await wavRecorder.end();
+    } catch (e) {
+      console.error(e);
+    }
 
     const wavStreamPlayer = wavStreamPlayerRef.current;
     await wavStreamPlayer.interrupt();
@@ -367,6 +374,19 @@ export function ConsolePage() {
     };
   }, []);
 
+  const updateInstructions = async () => {
+    const client = clientRef.current;
+    
+    // First disconnect
+    await disconnectConversation();
+    
+    // Update instructions
+    client.updateSession({ instructions: instructions });
+    
+    // Reconnect with new instructions
+    await connectConversation();
+  };
+
   /**
    * Core RealtimeClient and audio capture setup
    * Set all of our instructions, tools, events and more
@@ -377,6 +397,7 @@ export function ConsolePage() {
     const client = clientRef.current;
 
     // Set instructions
+    console.log(instructions);
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
@@ -384,76 +405,76 @@ export function ConsolePage() {
     // Add tools
     client.addTool(
       {
-        name: 'set_memory',
-        description: 'Saves important data about the user into memory.',
+        name: 'set_result',
+        description: 'Speichert die Bewertung einer Lernkarte.',
         parameters: {
           type: 'object',
           properties: {
-            key: {
+            learningCardId: {
               type: 'string',
-              description:
-                'The key of the memory value. Always use lowercase and underscores, no other characters.',
+              description: 'The id of the learning card.',
             },
-            value: {
-              type: 'string',
-              description: 'Value can be anything represented as a string',
+            grade: {
+              type: 'number',
+              description:
+                'Number between 1 and 4. 1 means the answer was correct, 4 means the answer was wrong.',
             },
           },
-          required: ['key', 'value'],
+          required: ['learningCardId', 'grade'],
         },
       },
-      async ({ key, value }: { [key: string]: any }) => {
+      async ({ learningCardId, grade }: { [key: string]: any }) => {
         setMemoryKv((memoryKv) => {
           const newKv = { ...memoryKv };
-          newKv[key] = value;
+          newKv[learningCardId.slice(0, 5) + '...'] = grade;
           return newKv;
         });
         return { ok: true };
       }
     );
-    client.addTool(
-      {
-        name: 'get_weather',
-        description:
-          'Retrieves the weather for a given lat, lng coordinate pair. Specify a label for the location.',
-        parameters: {
-          type: 'object',
-          properties: {
-            lat: {
-              type: 'number',
-              description: 'Latitude',
-            },
-            lng: {
-              type: 'number',
-              description: 'Longitude',
-            },
-            location: {
-              type: 'string',
-              description: 'Name of the location',
-            },
-          },
-          required: ['lat', 'lng', 'location'],
-        },
-      },
-      async ({ lat, lng, location }: { [key: string]: any }) => {
-        setMarker({ lat, lng, location });
-        setCoords({ lat, lng, location });
-        const result = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m`
-        );
-        const json = await result.json();
-        const temperature = {
-          value: json.current.temperature_2m as number,
-          units: json.current_units.temperature_2m as string,
-        };
-        const wind_speed = {
-          value: json.current.wind_speed_10m as number,
-          units: json.current_units.wind_speed_10m as string,
-        };
-        setMarker({ lat, lng, location, temperature, wind_speed });
-        return json;
-      }
-    );
+    // client.addTool(
+    //   {
+    //     name: 'get_weather',
+    //     description:
+    //       'Retrieves the weather for a given lat, lng coordinate pair. Specify a label for the location.',
+    //     parameters: {
+    //       type: 'object',
+    //       properties: {
+    //         lat: {
+    //           type: 'number',
+    //           description: 'Latitude',
+    //         },
+    //         lng: {
+    //           type: 'number',
+    //           description: 'Longitude',
+    //         },
+    //         location: {
+    //           type: 'string',
+    //           description: 'Name of the location',
+    //         },
+    //       },
+    //       required: ['lat', 'lng', 'location'],
+    //     },
+    //   },
+    //   async ({ lat, lng, location }: { [key: string]: any }) => {
+    //     setMarker({ lat, lng, location });
+    //     setCoords({ lat, lng, location });
+    //     const result = await fetch(
+    //       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,wind_speed_10m`
+    //     );
+    //     const json = await result.json();
+    //     const temperature = {
+    //       value: json.current.temperature_2m as number,
+    //       units: json.current_units.temperature_2m as string,
+    //     };
+    //     const wind_speed = {
+    //       value: json.current.wind_speed_10m as number,
+    //       units: json.current_units.wind_speed_10m as string,
+    //     };
+    //     setMarker({ lat, lng, location, temperature, wind_speed });
+    //     return json;
+    //   }
+    // );
 
     // handle realtime events from client + server for event logging
     client.on('realtime.event', (realtimeEvent: RealtimeEvent) => {
@@ -500,6 +521,8 @@ export function ConsolePage() {
     };
   }, []);
 
+  const [isOpen, setIsOpen] = useState(false);
+
   /**
    * Render the application
    */
@@ -507,10 +530,9 @@ export function ConsolePage() {
     <div data-component="ConsolePage">
       <div className="content-top">
         <div className="content-title">
-          <img src="/openai-logomark.svg" />
-          <span>realtime console</span>
+          <img src="/logo_full.png" />
         </div>
-        <div className="content-api-key">
+        {/* <div className="content-api-key">
           {!LOCAL_RELAY_SERVER_URL && (
             <Button
               icon={Edit}
@@ -520,6 +542,25 @@ export function ConsolePage() {
               onClick={() => resetAPIKey()}
             />
           )}
+        </div> */}
+        <div>
+          <Dialog
+            isOpen={isOpen}
+            onOpenChange={setIsOpen}
+            title="Prompt bearbeiten"
+            description=" "
+            trigger={<Button
+              icon={Edit}
+              iconPosition="end"
+              buttonStyle="flush"
+              label={`Prompt bearbeiten`}
+            />}
+          >
+            <div>
+              <textarea value={instructions || ''} onChange={(e) => setInstructions(e.target.value)} rows={30} style={{ width: '100%' }} />
+              <button onClick={() => {updateInstructions(); setIsOpen(false)}}>Speichern</button>
+            </div>
+          </Dialog>
         </div>
       </div>
       <div className="content-main">
@@ -692,7 +733,7 @@ export function ConsolePage() {
           </div>
         </div>
         <div className="content-right">
-          <div className="content-block map">
+          {/* <div className="content-block map">
             <div className="content-block-title">get_weather()</div>
             <div className="content-block-title bottom">
               {marker?.location || 'not yet retrieved'}
@@ -717,9 +758,9 @@ export function ConsolePage() {
                 />
               )}
             </div>
-          </div>
+          </div> */}
           <div className="content-block kv">
-            <div className="content-block-title">set_memory()</div>
+            <div className="content-block-title">set_result()</div>
             <div className="content-block-body content-kv">
               {JSON.stringify(memoryKv, null, 2)}
             </div>
