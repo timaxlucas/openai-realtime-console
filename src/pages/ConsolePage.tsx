@@ -127,6 +127,7 @@ export function ConsolePage() {
   const [marker, setMarker] = useState<Coordinates | null>(null);
 
   const [instructions, setInstructions] = useAtom(instructionsAtom);
+  const aliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Utility for formatting the timing of logs
@@ -188,13 +189,17 @@ export function ConsolePage() {
       {
         type: `input_text`,
         text: `Hallo!`,
-        // text: `For testing purposes, I want you to list ten car brands. Number each item, e.g. "one (or whatever number you are one): the item name".`
       },
     ]);
 
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
+
+    const interval = setInterval(() => {
+      client.dispatch('ping', {});
+    }, 30000);
+    aliveIntervalRef.current = interval;
   }, []);
 
   /**
@@ -210,6 +215,10 @@ export function ConsolePage() {
       lng: -122.418137,
     });
     setMarker(null);
+
+    if (aliveIntervalRef.current) {
+      clearInterval(aliveIntervalRef.current);
+    }
 
     const client = clientRef.current;
     client.disconnect();
@@ -399,7 +408,7 @@ export function ConsolePage() {
     // Set instructions
     client.updateSession({ instructions: instructions });
     // Set transcription, otherwise we don't get user transcriptions back
-    client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
+    client.updateSession({ input_audio_transcription: { model: 'whisper-1' }, voice: "alloy" });
 
     // Add tools
     client.addTool(

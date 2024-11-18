@@ -62,6 +62,10 @@ export class RealtimeRelay {
       }
     });
     ws.on('close', () => client.disconnect());
+    ws.on('ping', () => {
+      this.log('ping');
+      ws.pong();
+    });
 
     // Connect to OpenAI Realtime API
     try {
