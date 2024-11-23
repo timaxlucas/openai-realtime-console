@@ -172,7 +172,7 @@ export function ConsolePage() {
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
 
 
     // Set instructions
@@ -189,7 +189,7 @@ export function ConsolePage() {
     await wavRecorder.begin();
 
     // Connect to audio output
-    await wavStreamPlayer.connect();
+    // await wavStreamPlayer.connect();
 
     // Connect to realtime API
     await client.connect();
@@ -229,8 +229,8 @@ export function ConsolePage() {
       console.error(e);
     }
 
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    await wavStreamPlayer.interrupt();
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
+    // await wavStreamPlayer.interrupt();
   }, []);
 
   const deleteConversationItem = useCallback(async (id: string) => {
@@ -408,11 +408,11 @@ export function ConsolePage() {
    */
   useEffect(() => {
     // Get refs
-    const wavStreamPlayer = wavStreamPlayerRef.current;
+    // const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
 
     // Set transcription, otherwise we don't get user transcriptions back
-    client.updateSession({ input_audio_transcription: { model: 'whisper-1' }, voice: "alloy" });
+    client.updateSession({ input_audio_transcription: { model: 'whisper-1' }, voice: undefined, modalities: ['text'] });
 
     // client.addTool(
     //   {
@@ -494,10 +494,10 @@ export function ConsolePage() {
     }, async () => {
 
       loadNextCardRef.current = true;
-      // const card = await getNewLearningCard();
-      // disconnectConversation();
-      // client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
-      // await connectConversation();
+      const card = await getNewLearningCard();
+      disconnectConversation();
+      client.updateSession({ instructions: instructions + '\n\n' + card });
+      await connectConversation();
       return { ok: true };
     })
     // client.addTool(
@@ -558,14 +558,14 @@ export function ConsolePage() {
       });
     });
     client.on('error', (event: any) => console.error(event));
-    client.on('conversation.interrupted', async () => {
-      console.log("conversation.interrupted");
-      const trackSampleOffset = await wavStreamPlayer.interrupt();
-      if (trackSampleOffset?.trackId) {
-        const { trackId, offset } = trackSampleOffset;
-        await client.cancelResponse(trackId, offset);
-      }
-    });
+    // client.on('conversation.interrupted', async () => {
+    //   console.log("conversation.interrupted");
+    //   const trackSampleOffset = await wavStreamPlayer.interrupt();
+    //   if (trackSampleOffset?.trackId) {
+    //     const { trackId, offset } = trackSampleOffset;
+    //     await client.cancelResponse(trackId, offset);
+    //   }
+    // });
     client.on('conversation.updated', async ({ item, delta }: any) => {
       const items = client.conversation.getItems();
       // if (delta?.audio) {
