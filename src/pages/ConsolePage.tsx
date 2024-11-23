@@ -129,7 +129,8 @@ export function ConsolePage() {
   const [instructions, setInstructions] = useAtom(instructionsAtom);
 
   const [card, setCard] = useState<string | null>(null);
-  const aliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const loadNextCardRef = useRef(false);
 
   /**
    * Utility for formatting the timing of logs
@@ -202,11 +203,6 @@ export function ConsolePage() {
     if (client.getTurnDetectionType() === 'server_vad') {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-
-    const interval = setInterval(() => {
-      client.dispatch('ping', {});
-    }, 30000);
-    aliveIntervalRef.current = interval;
   }, []);
 
   /**
@@ -222,10 +218,6 @@ export function ConsolePage() {
       lng: -122.418137,
     });
     setMarker(null);
-
-    if (aliveIntervalRef.current) {
-      clearInterval(aliveIntervalRef.current);
-    }
 
     const client = clientRef.current;
     client.disconnect();
@@ -500,10 +492,12 @@ export function ConsolePage() {
         properties: {},
       }
     }, async () => {
-      const card = await getNewLearningCard();
-      disconnectConversation();
-      client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
-      await connectConversation();
+
+      loadNextCardRef.current = true;
+      // const card = await getNewLearningCard();
+      // disconnectConversation();
+      // client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
+      // await connectConversation();
       return { ok: true };
     })
     // client.addTool(
@@ -577,6 +571,13 @@ export function ConsolePage() {
         wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
       if (item.status === 'completed' && item.formatted.audio?.length) {
+        if (loadNextCardRef.current) {
+          loadNextCardRef.current = false;
+          const card = await getNewLearningCard();
+          disconnectConversation();
+          client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
+          await connectConversation();
+        }
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
           24000,
