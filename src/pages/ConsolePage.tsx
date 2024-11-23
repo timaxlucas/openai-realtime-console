@@ -127,6 +127,8 @@ export function ConsolePage() {
   const [marker, setMarker] = useState<Coordinates | null>(null);
 
   const [instructions, setInstructions] = useAtom(instructionsAtom);
+
+  const [card, setCard] = useState<string | null>(null);
   const aliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
@@ -170,6 +172,11 @@ export function ConsolePage() {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
+
+
+    // Set instructions
+    const card = await getNewLearningCard();
+    client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
 
     // Set state variables
     startTimeRef.current = new Date().toISOString();
@@ -383,6 +390,13 @@ export function ConsolePage() {
     };
   }, []);
 
+  const getNewLearningCard = async () => {
+    const res = await fetch(`https://waidwissen.com/api/v2/learningCard/random`)
+    const text = await res.text()
+    console.log("getNewLearningCard", text);
+    return text;
+  }
+
   const updateInstructions = async () => {
     const client = clientRef.current;
     
@@ -405,8 +419,6 @@ export function ConsolePage() {
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
 
-    // Set instructions
-    client.updateSession({ instructions: instructions, tool_choice: 'auto' });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' }, voice: "alloy" });
 
@@ -481,14 +493,17 @@ export function ConsolePage() {
       }
     );
     client.addTool({
-      name: 'end',
-      description: 'End the conversation',
+      name: 'end_card',
+      description: 'Beendet die Lernkarte und lädt eine neue.',
       parameters: {
         type: 'object',
         properties: {},
       }
     }, async () => {
+      const card = await getNewLearningCard();
       disconnectConversation();
+      client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
+      await connectConversation();
       return { ok: true };
     })
     // client.addTool(
