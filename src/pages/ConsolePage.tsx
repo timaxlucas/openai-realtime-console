@@ -196,7 +196,7 @@ export function ConsolePage() {
     client.sendUserMessageContent([
       {
         type: `input_text`,
-        text: `Hallo!`,
+        text: `Starte die Lernkarte! Begrüße mich nicht.`,
       },
     ]);
 
@@ -559,6 +559,7 @@ export function ConsolePage() {
     });
     client.on('error', (event: any) => console.error(event));
     client.on('conversation.interrupted', async () => {
+      console.log("conversation.interrupted");
       const trackSampleOffset = await wavStreamPlayer.interrupt();
       if (trackSampleOffset?.trackId) {
         const { trackId, offset } = trackSampleOffset;
@@ -567,16 +568,20 @@ export function ConsolePage() {
     });
     client.on('conversation.updated', async ({ item, delta }: any) => {
       const items = client.conversation.getItems();
-      if (delta?.audio) {
-        wavStreamPlayer.add16BitPCM(delta.audio, item.id);
-      }
+      // if (delta?.audio) {
+      //   wavStreamPlayer.add16BitPCM(delta.audio, item.id);
+      // }
       if (item.status === 'completed' && item.formatted.audio?.length) {
+        console.log("conversation.updated", "completed");
         if (loadNextCardRef.current) {
           loadNextCardRef.current = false;
           const card = await getNewLearningCard();
-          disconnectConversation();
-          client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
-          await connectConversation();
+
+          setTimeout(async () => {
+            await disconnectConversation();
+            client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
+            await connectConversation();
+          }, 2000);
         }
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
@@ -770,6 +775,10 @@ export function ConsolePage() {
                         <audio
                           src={conversationItem.formatted.file.url}
                           controls
+                          ref={(audio) => {
+                            if (audio) audio.playbackRate = 1.5;
+                          }}
+                          autoPlay={conversationItem.role === 'assistant'}
                         />
                       )}
                     </div>
