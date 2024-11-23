@@ -495,7 +495,7 @@ export function ConsolePage() {
 
       loadNextCardRef.current = true;
       const card = await getNewLearningCard();
-      disconnectConversation();
+      await disconnectConversation();
       client.updateSession({ instructions: instructions + '\n\n' + card });
       await connectConversation();
       return { ok: true };
