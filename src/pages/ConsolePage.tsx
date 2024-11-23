@@ -212,7 +212,7 @@ export function ConsolePage() {
     setIsConnected(false);
     setRealtimeEvents([]);
     setItems([]);
-    setMemoryKv({});
+    // setMemoryKv({});
     setCoords({
       lat: 37.775593,
       lng: -122.418137,
@@ -572,17 +572,6 @@ export function ConsolePage() {
       //   wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       // }
       if (item.status === 'completed' && item.formatted.audio?.length) {
-        console.log("conversation.updated", "completed");
-        if (loadNextCardRef.current) {
-          loadNextCardRef.current = false;
-          const card = await getNewLearningCard();
-
-          setTimeout(async () => {
-            await disconnectConversation();
-            client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
-            await connectConversation();
-          }, 2000);
-        }
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
           24000,
@@ -777,6 +766,19 @@ export function ConsolePage() {
                           controls
                           ref={(audio) => {
                             if (audio) audio.playbackRate = 1.5;
+                          }}
+                          onEnded={async () => {
+                            if (loadNextCardRef.current) {
+                              const client = clientRef.current;
+                              loadNextCardRef.current = false;
+                              const card = await getNewLearningCard();
+                    
+                              setTimeout(async () => {
+                                await disconnectConversation();
+                                client.updateSession({ instructions: instructions + '\n\n' + card, tool_choice: 'auto' });
+                                await connectConversation();
+                              }, 500);
+                            }
                           }}
                           autoPlay={conversationItem.role === 'assistant'}
                         />
