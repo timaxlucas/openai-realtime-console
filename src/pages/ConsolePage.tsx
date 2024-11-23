@@ -406,49 +406,49 @@ export function ConsolePage() {
     const client = clientRef.current;
 
     // Set instructions
-    client.updateSession({ instructions: instructions });
+    client.updateSession({ instructions: instructions, tool_choice: 'auto' });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' }, voice: "alloy" });
 
-    client.addTool(
-      {
-        name: 'next_card',
-        description: 'Gibt die nächste Lernkarte zurück.',
-        parameters: {
-          type: 'object',
-          properties: {
-            // topic: {
-            //   type: 'string',
-            //   description: 'Thema der Lernkarten.',
-            // },
-            query: {
-              type: 'string',
-              description: 'Suchbegriff.',
-            },
-          },
-          required: ['query'],
-        },
-      },
-      async ({ query, topic }: { query: string, topic: string }) => {
-        const res = await fetch(`https://waidwissen.com/api/v2/search/learningCards/${query}`) //?topic=${topic}
-        const json = await res.json() as {
-          document: {
-            id: string;
-            topic: string;
-            backSide: string;
-            frontSide: string;
-            backSideFiles: any[];
-            frontSideFiles: any[];
-          }
-        }[];
-        return { cards: json.map((item) => ({
-          id: item.document.id,
-          topic: item.document.topic,
-          backSide: item.document.backSide,
-          frontSide: item.document.frontSide,
-        })) };
-      }
-    );
+    // client.addTool(
+    //   {
+    //     name: 'next_card',
+    //     description: 'Gibt die nächste Lernkarte zurück.',
+    //     parameters: {
+    //       type: 'object',
+    //       properties: {
+    //         // topic: {
+    //         //   type: 'string',
+    //         //   description: 'Thema der Lernkarten.',
+    //         // },
+    //         query: {
+    //           type: 'string',
+    //           description: 'Suchbegriff.',
+    //         },
+    //       },
+    //       required: ['query'],
+    //     },
+    //   },
+    //   async ({ query, topic }: { query: string, topic: string }) => {
+    //     const res = await fetch(`https://waidwissen.com/api/v2/search/learningCards/${query}`) //?topic=${topic}
+    //     const json = await res.json() as {
+    //       document: {
+    //         id: string;
+    //         topic: string;
+    //         backSide: string;
+    //         frontSide: string;
+    //         backSideFiles: any[];
+    //         frontSideFiles: any[];
+    //       }
+    //     }[];
+    //     return { cards: json.map((item) => ({
+    //       id: item.document.id,
+    //       topic: item.document.topic,
+    //       backSide: item.document.backSide,
+    //       frontSide: item.document.frontSide,
+    //     })) };
+    //   }
+    // );
 
     // Add tools
     client.addTool(
@@ -480,6 +480,17 @@ export function ConsolePage() {
         return { ok: true };
       }
     );
+    client.addTool({
+      name: 'end',
+      description: 'End the conversation',
+      parameters: {
+        type: 'object',
+        properties: {},
+      }
+    }, async () => {
+      disconnectConversation();
+      return { ok: true };
+    })
     // client.addTool(
     //   {
     //     name: 'get_weather',
