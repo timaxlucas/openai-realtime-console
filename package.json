@@ -5,7 +5,7 @@
   "homepage": "/test-ai-pruefer",
   "private": true,
   "dependencies": {
-    "@openai/realtime-api-beta": "github:openai/openai-realtime-api-beta",
+    "@openai/realtime-api-beta": "github:TheoGibbons/openai-realtime-api-beta#bd4e74a",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
